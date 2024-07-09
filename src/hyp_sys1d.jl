@@ -46,7 +46,7 @@ function compute_lam_dt(equation, param::Parameters, scheme::Scheme, grid::Carte
         lam = maximum(abs.(eigvals(equation.fprime)))
     end
     dt = (param.cfl * grid.dx[1])/lam   # dx is a vector; it is useful for non-uniform grid version
-    return lam, dt
+    return param.cfl*lam, dt
 end
 
 function set_initial_value!(grid::CartesianGrid, U::gArray, problem::Problem) where gArray
@@ -62,8 +62,8 @@ end
 function update_ghost!(grid::CartesianGrid, U::gArray, problem::Problem) where gArray
     nx = grid.nx
     if problem.boundary_condition == "Periodic"
-        U[:, 0] .= U[:, nx-1]
-        U[:, nx+1] .= U[:, 2]
+        U[:, 0] .= U[:, nx]
+        U[:, nx+1] .= U[:, 1]
     end
     # display(U)
 end
@@ -75,16 +75,21 @@ function compute_residual!(equation, grid::CartesianGrid, lam::Float64, U::gArra
     # xf = grid.xf
     dx = OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
     @. dx[1:nx] = grid.dx[1:nx]
-    # dx[0] = grid.dx[nx-1]
-    # dx[nx+1] = grid.dx[2]
-    numflux = scheme.numflux
+    res[:,:] .= 0.0
+    # dx[0] = grid.dx[nx]
+    # dx[nx+1] = grid.dx[1]
+    # numflux = scheme.numflux
     for i in 1:nx+1
+	# display(U)
         @views Ul, Ur = U[:, i-1], U[:, i]
         # display(Ur)
+    # 	@assert false
         if scheme.numflux == "rusanov"
             rusanov!(equation, lam, Ul, Ur, Uf)
         end
         # display(Uf)
+	# display(Uf)
+	# @show dx
         @views res[:, i-1] += Uf/ dx[i-1]           # How is this working for non-uniform grid??
         @views res[:, i] -= Uf/ dx[i]
     end
@@ -106,16 +111,18 @@ function solve(equation, problem::Problem, scheme::Scheme, param::Parameters)
     # display(U)
     it, t = 0, 0.0
     while t < Tf
+    	# display(U)
         lam, dt = compute_lam_dt(equation, param, scheme, grid)
         # @show (lam, dt)
         dt = adjust_time_step(problem, param, dt, t)
         # @show (lam, dt)
         update_ghost!(grid, U, problem)
-        display(U)
+        # display(U)
         compute_residual!(equation, grid, lam, U, scheme, res, problem)
         @. U -= dt*res
-        # display(U)
+        # display(res)
         t += dt; it += 1
+	@show it
         # update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data)
     end
     # @show U

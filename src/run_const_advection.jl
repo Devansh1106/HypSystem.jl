@@ -1,6 +1,6 @@
 using HypSystem
 
-grid_size = 10              # number of cells
+grid_size = 100 
 xmin, xmax = 0.0, 1.0       # domain
 nvar = 3                    # number of variables
 fprime = [1.0 2.0 3.0;

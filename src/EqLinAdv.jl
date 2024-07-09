@@ -17,6 +17,14 @@ function rusanov!(equation::LinAdv, lam::Float64, Ul::SubArray{Float64, 1},
     Fl, Fr = flux(fprime, Ul), flux(fprime, Ur)
     Uf .= 0.5*(Fl + Fr) - 0.5*lam*(Ur - Ul)
     # display(Uf)
+    # @show Uf
+    # @show Fl
+    # @show Fr
+    # @show Ul
+    # @show Ur
+    # @show lam
+    # @show fprime
+    # @assert false
 end
 
 # TODO: Check expression for exact solution from notes.
