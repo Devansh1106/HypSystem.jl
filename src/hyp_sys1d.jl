@@ -41,12 +41,29 @@ function adjust_time_step(problem::Problem, param::Parameters,
 end
 
 # TODO: for non-uniform grid there will be loop and dt = min(...);lam=max(...)
-function compute_lam_dt(equation, param::Parameters, scheme::Scheme, grid::CartesianGrid)
-    if scheme.numflux == "rusanov"
-        lam = maximum(abs.(eigvals(equation.fprime)))
-    end
-    dt = (param.cfl * grid.dx[1])/lam   # dx is a vector; it is useful for non-uniform grid version
-    return param.cfl*lam, dt
+function compute_lam_dt(U::gArray, param::Parameters, grid::CartesianGrid, scheme::Scheme, eq) where gArray
+    nx = grid.nx
+    dx = grid.dx
+    lam = 0.0
+    dt = 1.0
+    for i in 1:nx
+        ua = U[:, i]
+        if typeof(eq) == LinAdv
+            lam0 = maximum(abs.(eigvals(eq.fprime)))
+        else
+            ρ, u, E = ua[1], ua[2]/ua[1], ua[3]    # density, velocity, energy
+            p = (eq.γ - 1.0) * (E - 0.5*ρ*u^2)     # pressure
+            c = sqrt(eq.γ*p/ρ)                     # sound speed
+            # @show eq.γ*p/ρ
+            lam0 = abs(u)+c
+        end
+        lam = max(lam, lam0)
+        dt = min(dt, dx[i]/lam0)
+     end
+
+     dt = param.cfl * dt   # dx is a vector; it is useful for non-uniform grid version
+     lam = param.cfl * lam
+    return lam, dt
 end
 
 function set_initial_value!(grid::CartesianGrid, U::gArray, problem::Problem) where gArray
@@ -56,7 +73,6 @@ function set_initial_value!(grid::CartesianGrid, U::gArray, problem::Problem) wh
     for i in 1:nx
         @views U[:,i] .= initial_value(xc[i])
     end
-    # println(U)
 end
 
 function update_ghost!(grid::CartesianGrid, U::gArray, problem::Problem) where gArray
@@ -65,90 +81,92 @@ function update_ghost!(grid::CartesianGrid, U::gArray, problem::Problem) where g
         U[:, 0] .= U[:, nx]
         U[:, nx+1] .= U[:, 1]
     end
-    # display(U)
 end
 
-function compute_residual!(equation, grid::CartesianGrid, lam::Float64, U::gArray,
-                           scheme::Scheme, res::gArray, problem::Problem) where gArray
+function compute_residual!(equation, lam::Float64, grid::CartesianGrid, U::gArray,
+                            scheme::Scheme, res::gArray, problem::Problem) where gArray
     Uf = zeros(problem.nvar)
     nx = grid.nx
-    # xf = grid.xf
     dx = OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
     @. dx[1:nx] = grid.dx[1:nx]
-    res[:,:] .= 0.0
-    # dx[0] = grid.dx[nx]
+    res[:,:] .= 0.0     # Every time step we need to make res = 0.0, otherwise it will add up all
+    # dx[0] = grid.dx[nx]	# no need of this as res[0] and res[nx+1] are of no use.
     # dx[nx+1] = grid.dx[1]
-    # numflux = scheme.numflux
     for i in 1:nx+1
-	# display(U)
         @views Ul, Ur = U[:, i-1], U[:, i]
-        # display(Ur)
-    # 	@assert false
         if scheme.numflux == "rusanov"
-            rusanov!(equation, lam, Ul, Ur, Uf)
+           rusanov!(equation, lam, Ul, Ur, Uf)
         end
-        # display(Uf)
-	# display(Uf)
-	# @show dx
-        @views res[:, i-1] += Uf/ dx[i-1]           # How is this working for non-uniform grid??
+        @views res[:, i-1] += Uf/ dx[i-1]           
         @views res[:, i] -= Uf/ dx[i]
     end
-    # display(res)
 end
 
-function solve(equation, problem::Problem, scheme::Scheme, param::Parameters)
-    grid = make_grid(problem, param)
+function solve(equation, grid::CartesianGrid, problem::Problem, scheme::Scheme, param::Parameters)
     nvar = problem.nvar
     Tf = problem.final_time
     nx = grid.nx
     dx = grid.dx
     xf = grid.xf
+    error = fill(0.0, nvar)
     # Allocating variables
     U = gArray(nvar, nx)
-    Ue = gArray(nvar, nx)
     res = gArray(nvar, nx) # dU/dt + res(U) = 0
     set_initial_value!(grid, U, problem)
-    # display(U)
     it, t = 0, 0.0
-    while t < Tf
-    	# display(U)
-        lam, dt = compute_lam_dt(equation, param, scheme, grid)
-        # @show (lam, dt)
+    while t < Tf 
+        lam, dt = compute_lam_dt(U, param, grid, scheme, equation)
         dt = adjust_time_step(problem, param, dt, t)
-        # @show (lam, dt)
         update_ghost!(grid, U, problem)
-        # display(U)
-        compute_residual!(equation, grid, lam, U, scheme, res, problem)
+        compute_residual!(equation, lam, grid, U, scheme, res, problem)
         @. U -= dt*res
-        # display(res)
         t += dt; it += 1
-	@show it
-        # update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data)
     end
-    # @show U
-    compute_exact_soln!(grid, equation, problem, t, Ue)
-    # println(U,"\n")
-    # println(Ue)
-    plot_sol(grid, U, Ue, problem)
-
-    # open("linhyp/num_sol.txt", "w") do io
-    #     writedlm(io, [U], '\n')
-    # end
-    # println("Solution is in num_sol.txt file")
+    return U
+   # if typeof(equation) == LinAdv
+   #     compute_exact_soln!(grid, equation, problem, t, Ue)
+   # else
+   #     println("calculating the exact solution from Toro's solver")
+   #     println("Solving exactly for final time")
+   #     p_l_s, p_r_s = array2string(primitive_l), array2string(primitive_r)
+   #     # run(`python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t $final_time`)
+   #     print("python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t")
+   # end
+    # error_cal!(grid, problem, U, Ue, error) 
+    # display(error)
+    # plot_sol(grid, U, Ue, problem)
 end
 
 function plot_sol(grid::CartesianGrid, U::gArray, Ue::gArray, problem::Problem) where gArray
     nvar = problem.nvar
     nx = grid.nx
     xc = grid.xc
-    # xf = grid.xf
     for i in 1:nvar
         @views y_exact, y_num = Ue[i, 1:nx], U[i, 1:nx]
         plot(xc, y_exact, label="Exact Solution", linestyle=:solid, linewidth=2, dpi=150)
         plot!(xc, y_num, label="Numerical Solution", xlabel="Domain", ylabel="Solution values",
-              title="Solution Plot", linewidth=2, linestyle=:dot, linecolor="black", 
+              title="Solution Plot $nvar", linewidth=2, linestyle=:dot, linecolor="black", 
               dpi=150)
         savefig("fig/hypsys1D_$i.png")
     end
     println("Figures are saved in folder `fig`.")
+end
+
+# function error_cal!(grid::CartesianGrid, problem::Problem, U::gArray, Ue::gArray, error::Vector{Float64}) where gArray
+#     nx = grid.nx
+#     nvar = problem.nvar
+#     for i in 1:nvar
+# 	@views error[i] = sum(abs.(U[i, 1:nx] - Ue[i, 1:nx]))
+# 	error[i] = error[i]/nx
+#     end
+# end
+
+# converts array to string; used in Toro's solver for Euler's equation
+function array2string(arr)
+   arr_string = "["
+   n = size(arr)[1]
+   for i=1:n-1
+      arr_string = arr_string * string(arr[i]) * ","
+   end
+   arr_string = arr_string * string(arr[end]) * "]"
 end

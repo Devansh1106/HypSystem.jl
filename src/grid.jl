@@ -4,6 +4,7 @@ struct CartesianGrid
     xc::Vector{Float64}         # cell centers
     xf::Vector{Float64}         # cell faces
     dx::Vector{Float64}         # cell sizes
+    nvar::Int64
 end
 
 # Uniform cartesian grid 
@@ -19,5 +20,5 @@ function make_grid(problem, param)
     xf = LinRange(xmin, xmax, nx+1)
     dx1 = fill(0.0, nx)
     dx1 .= dx
-    return CartesianGrid((xmin, xmax), nx, xc, xf, dx1)
+    return CartesianGrid((xmin, xmax), nx, xc, xf, dx1, nvar)
 end

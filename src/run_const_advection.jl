@@ -1,6 +1,6 @@
 using HypSystem
 
-grid_size = 100 
+grid_size = 400 
 xmin, xmax = 0.0, 1.0       # domain
 nvar = 3                    # number of variables
 fprime = [1.0 2.0 3.0;
@@ -17,4 +17,8 @@ equation = LinAdv(fprime)
 problem = Problem((xmin, xmax), nvar, initial_value, boundary_condition, final_time)
 param = create_parameters(cfl, grid_size)
 scheme = Scheme(equation, numflux)
-solve(equation, problem, scheme, param)
+grid = make_grid(problem, param)
+U = solve(equation, grid, problem, scheme, param)
+Ue = compute_exact_soln(grid, equation, problem, final_time)
+error_cal(equation, grid, U, Ue)
+# plotting script ???
