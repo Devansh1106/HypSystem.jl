@@ -66,12 +66,12 @@ function compute_lam_dt(U::gArray, param::Parameters, grid::CartesianGrid, schem
     return lam, dt
 end
 
-function set_initial_value!(grid::CartesianGrid, U::gArray, problem::Problem) where gArray
+function set_initial_value!(eq, grid::CartesianGrid, U::gArray, problem::Problem) where gArray
     nx = grid.nx
     xc = grid.xc
     initial_value = problem.initial_value
     for i in 1:nx
-        @views U[:,i] .= initial_value(xc[i])
+        @views U[:,i] .= initial_value(xc[i], eq)
     end
 end
 
@@ -108,11 +108,11 @@ function solve(equation, grid::CartesianGrid, problem::Problem, scheme::Scheme, 
     nx = grid.nx
     dx = grid.dx
     xf = grid.xf
-    error = fill(0.0, nvar)
     # Allocating variables
     U = gArray(nvar, nx)
     res = gArray(nvar, nx) # dU/dt + res(U) = 0
-    set_initial_value!(grid, U, problem)
+    # display(U)
+    set_initial_value!(equation, grid, U, problem)
     it, t = 0, 0.0
     while t < Tf 
         lam, dt = compute_lam_dt(U, param, grid, scheme, equation)

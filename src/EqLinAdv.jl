@@ -18,7 +18,7 @@ function rusanov!(equation::LinAdv, lam::Float64, Ul::SubArray{Float64, 1},
     Uf .= 0.5*(Fl + Fr) - 0.5*lam*(Ur - Ul)
 end
 
-function compute_exact_soln(grid::CartesianGrid, equation::LinAdv, problem::Problem,
+function compute_exact_soln(equation::LinAdv, grid::CartesianGrid, problem::Problem,
                              t::Float64)
     nx = grid.nx
     xc = grid.xc

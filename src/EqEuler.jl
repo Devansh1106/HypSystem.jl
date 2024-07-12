@@ -44,6 +44,8 @@ function error_cal(eq::Euler, grid::CartesianGrid, U::gArray, Ue::gArray) where 
     nx = grid.nx
     nvar = grid.nvar
     error = fill(0.0, nvar)
+    display(U)
+    display(Ue)
     for i in 1:nvar
         @views error[i] = sum(abs.(U[i, 1:nx] - Ue[i, 1:nx]))
         error[i] = error[i]/nx
@@ -51,7 +53,7 @@ function error_cal(eq::Euler, grid::CartesianGrid, U::gArray, Ue::gArray) where 
     display(error)
 end
 
-function compute_exact_soln(grid::CartesianGrid, t::Float64, primitive_l::Vector{Float64}, primitive_r::Vector{Float64}, disc_x::Float64)
+function compute_exact_soln(eq::Euler, grid::CartesianGrid, t::Float64, primitive_l::Vector{Float64}, primitive_r::Vector{Float64}, disc_x::Float64)
     nx = grid.nx
     nvar = grid.nvar
     Ue = gArray(nvar, nx)
