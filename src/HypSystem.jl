@@ -10,6 +10,6 @@ include("EqLinAdv.jl")
 include("EqEuler.jl")
 
 
-export compute_exact_soln, error_cal, LinAdv, Euler, primitive2pde, Problem, create_parameters, Scheme, solve, make_grid
+export compute_exact_soln, error_cal, LinAdv, Euler, primitive2pde, Problem, create_parameters, Scheme, solve, make_grid, plot_sol
 
 end # module HypSystem

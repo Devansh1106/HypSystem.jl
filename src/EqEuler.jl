@@ -62,7 +62,7 @@ function compute_exact_soln(eq::Euler, grid::CartesianGrid, t::Float64, primitiv
     p_l_s, p_r_s = array2string(primitive_l), array2string(primitive_r)
     run(`python3 ./ToroExact/toro_exact.py -p user -n $nx -l $p_l_s -r $p_r_s -x $disc_x -t $t`)
     # print("python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t")
-    exact_data = readdlm("./ToroExact/output/toro_user_exact.dat")
+    exact_data = readdlm("/ToroExact/output/toro_user_exact.dat")
     # display(exact_data[10:grid_size, 2])
     for i in 1:nx
         Ue[1, i] = exact_data[9+i, 2]

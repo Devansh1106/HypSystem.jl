@@ -29,7 +29,7 @@ function compute_exact_soln(equation::LinAdv, grid::CartesianGrid, problem::Prob
     eigen_vecs = eigvecs(equation.fprime)
     for j in 1:nx
         for i in 1:nvar
-            Ue[i,j] = (inv(eigen_vecs) * initial_value(xc[j] - eigen_vals[i] * t))[i]
+            Ue[i,j] = (inv(eigen_vecs) * initial_value(xc[j] - eigen_vals[i] * t, equation))[i]
         end
     end
     for i in 1:nx

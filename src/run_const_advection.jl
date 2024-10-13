@@ -1,6 +1,6 @@
 using HypSystem
 
-grid_size = 400 
+grid_size = 800 
 xmin, xmax = 0.0, 1.0       # domain
 nvar = 3                    # number of variables
 fprime = [1.0 2.0 3.0;
@@ -23,4 +23,4 @@ display(U)
 
 Ue = compute_exact_soln(equation, grid, problem, final_time)
 error_cal(equation, grid, U, Ue)
-# plotting script ???
+plot_sol(grid, U, Ue, problem)
